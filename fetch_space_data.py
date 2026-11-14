@@ -1,24 +1,24 @@
-from astroquery.skyview import SkyView
-import matplotlib.pyplot as plt
-import os
+from astroquery.gaia import Gaia
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+import json
 
-print("Fetching multi-epoch/survey image cutouts from NASA SkyView...")
-surveys = ["DSS1 Red", "DSS2 Red", "IRAS 100", "VGPS"]
-os.makedirs("frontend/public/images", exist_ok=True)
+print("Connecting to Gaia DR3 archive to fetch real stars...")
+coord = SkyCoord(ra=56.75 * u.deg, dec=24.11 * u.deg, frame='icrs')
+job = Gaia.query_object_async(coordinate=coord, width=0.3*u.deg, height=0.3*u.deg)
 
-try:
-    images = SkyView.get_images(position="05h34m31.97s +22d00m52.1s", survey=surveys, pixels=400)
-    for i, img in enumerate(images):
-        survey_name = surveys[i] if i < len(surveys) else f"Epoch {i+1}"
-        fig, ax = plt.subplots(figsize=(5, 5))
-        ax.imshow(img[0].data, cmap="gray", origin="lower")
-        ax.axis("off")
-        filename = f"epoch_{i+1}.png"
-        filepath = f"frontend/public/images/{filename}"
-        plt.savefig(filepath, bbox_inches="tight", pad_inches=0, facecolor="black")
-        plt.close()
-        print(f"Saved {survey_name} -> {filepath}")
-    print("All image cutouts successfully fetched and saved!")
-except Exception as e:
-    print(f"Error fetching images: {e}")
+print(f"Retrieved {len(job)} real stars successfully!")
 
+stars = []
+for i in range(min(50, len(job))):
+    stars.append({
+        "id": i,
+        "x": float(job['ra'][i]),
+        "y": float(job['dec'][i]),
+        "brightness": float(job['phot_g_mean_mag'][i])
+    })
+
+with open('frontend/src/realSpaceData.json', 'w') as f:
+    json.dump(stars, f)
+
+print("Saved real space data to frontend/src/realSpaceData.json!")
